@@ -1,5 +1,7 @@
 package io.csbroker.batchserver.controller
 
+import io.csbroker.batchserver.util.log
+import org.slf4j.MDC
 import org.springframework.batch.core.Job
 import org.springframework.batch.core.JobParameter
 import org.springframework.batch.core.JobParameters
@@ -12,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.time.LocalDateTime
 import java.time.ZoneId
+import java.util.UUID
 import javax.batch.operations.JobExecutionAlreadyCompleteException
 import javax.batch.operations.JobRestartException
 import javax.persistence.EntityManager
@@ -26,6 +29,8 @@ class RegradingJobLauncherController(
 
     @GetMapping("/{problemId}")
     fun regradingProblem(@PathVariable("problemId") problemId: Long) : String{
+        MDC.put("traceId", UUID.randomUUID().toString())
+        log.info("==> re-grading request coming with problem id : $problemId")
         try {
             val jobParametersMap = mutableMapOf<String, JobParameter>()
             jobParametersMap["problemId"] = JobParameter(problemId)
@@ -35,7 +40,7 @@ class RegradingJobLauncherController(
             val jobExecution = jobLauncher.run(job, jobParameters)
 
             while (jobExecution.isRunning) {
-                println("running!!!")
+                log.info("==> running re-grading with problem id : $problemId")
             }
         } catch (e: JobExecutionAlreadyCompleteException) {
             e.printStackTrace()

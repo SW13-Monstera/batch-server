@@ -28,8 +28,6 @@ class RegradingJobLauncherController(
 
     @GetMapping("/{problemId}")
     fun regradingProblem(@PathVariable("problemId") problemId: Long): RegradingResponseDto {
-        val traceId = UUID.randomUUID().toString()
-        MDC.put("traceId", traceId)
         log.info("==> re-grading request coming with problem id : $problemId")
         val jobParametersMap = mutableMapOf<String, JobParameter>()
         jobParametersMap["problemId"] = JobParameter(problemId)
@@ -45,7 +43,7 @@ class RegradingJobLauncherController(
 
         return RegradingResponseDto(
             "#$problemId problem re-grading batch job is started",
-            traceId
+            MDC.get("traceId")
         )
     }
 }

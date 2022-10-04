@@ -8,7 +8,6 @@ import org.springframework.batch.core.JobParameter
 import org.springframework.batch.core.JobParameters
 import org.springframework.batch.core.launch.support.SimpleJobLauncher
 import org.springframework.boot.autoconfigure.batch.BasicBatchConfigurer
-import org.springframework.core.task.SimpleAsyncTaskExecutor
 import org.springframework.core.task.TaskExecutor
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -16,7 +15,6 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 import java.time.LocalDateTime
 import java.time.ZoneId
-import java.util.UUID
 
 @RestController
 @RequestMapping("/grade")

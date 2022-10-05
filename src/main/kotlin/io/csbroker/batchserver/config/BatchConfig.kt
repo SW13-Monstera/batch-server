@@ -6,8 +6,11 @@ import io.csbroker.batchserver.dto.GradingResponseDto
 import io.csbroker.batchserver.entity.GradingHistory
 import io.csbroker.batchserver.entity.GradingStandard
 import io.csbroker.batchserver.util.log
+import org.springframework.batch.core.ExitStatus
 import org.springframework.batch.core.Job
 import org.springframework.batch.core.Step
+import org.springframework.batch.core.StepExecution
+import org.springframework.batch.core.StepExecutionListener
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory
 import org.springframework.batch.core.configuration.annotation.JobScope
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory
@@ -46,6 +49,7 @@ class BatchConfig(
             .reader(reader(0L, ""))
             .processor(processor(0L, ""))
             .writer(writer(0L, ""))
+            .listener(stepExecutionListener())
             .build()
     }
 
@@ -101,6 +105,22 @@ class BatchConfig(
         return JpaItemWriterBuilder<GradingHistory>()
             .entityManagerFactory(entityManagerFactory)
             .build()
+    }
+
+    @Bean
+    @StepScope
+    fun stepExecutionListener(): StepExecutionListener {
+        return object : StepExecutionListener {
+            override fun beforeStep(stepExecution: StepExecution) {
+                log.info("==> Before Step Status = ${stepExecution.status}");
+            }
+
+            override fun afterStep(stepExecution: StepExecution): ExitStatus {
+                log.info("==> After Step Status = ${stepExecution.status}");
+                log.info("==> Read Count = ${stepExecution.readCount}");
+                return stepExecution.exitStatus;
+            }
+        }
     }
 
     private fun sendGradingRequest(gradingHistory: GradingHistory): GradingResponseDto {

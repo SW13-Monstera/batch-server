@@ -1,6 +1,6 @@
 package io.csbroker.batchserver.dto
 
-import io.csbroker.batchserver.entity.GradingStandard
+import io.csbroker.batchserver.entity.GradingHistory
 import io.csbroker.batchserver.enum.GradingStandardType
 
 data class GradingRequestDto(
@@ -21,22 +21,20 @@ data class GradingRequestDto(
 
     companion object {
         fun createGradingRequestDto(
-            problemId: Long,
-            answer: String,
-            gradingStandards: List<GradingStandard>
+            gradingHistory: GradingHistory
         ): GradingRequestDto {
             return GradingRequestDto(
-                problemId,
-                answer,
-                gradingStandards.filter {
+                gradingHistory.problem.id,
+                gradingHistory.userAnswer,
+                gradingHistory.problem.gradingStandards.filter {
                     it.type == GradingStandardType.KEYWORD
                 }.map {
                     GradingKeyword(
-                        it.id!!,
+                        it.id,
                         it.content
                     )
                 },
-                gradingStandards.filter {
+                gradingHistory.problem.gradingStandards.filter {
                     it.type == GradingStandardType.PROMPT
                 }.map {
                     GradingPrompt(

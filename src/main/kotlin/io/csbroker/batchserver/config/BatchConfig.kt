@@ -2,7 +2,9 @@ package io.csbroker.batchserver.config
 
 import io.csbroker.batchserver.client.AIServerClient
 import io.csbroker.batchserver.dto.GradingRequestDto
+import io.csbroker.batchserver.dto.GradingResponseDto
 import io.csbroker.batchserver.entity.GradingHistory
+import io.csbroker.batchserver.entity.GradingStandard
 import io.csbroker.batchserver.util.log
 import org.springframework.batch.core.Job
 import org.springframework.batch.core.Step
@@ -61,7 +63,7 @@ class BatchConfig(
         return JpaPagingItemReaderBuilder<GradingHistory>()
             .pageSize(100)
             .parameterValues(parameterValues)
-           .queryString("SELECT DISTINCT gh FROM GradingHistory gh join fetch gh.problem p WHERE gh.problem.id = :problemId")
+            .queryString("SELECT DISTINCT gh FROM GradingHistory gh join fetch gh.problem p WHERE gh.problem.id = :problemId")
             .entityManagerFactory(entityManagerFactory)
             .name("JpaPagingItemReader")
             .build()
@@ -78,26 +80,9 @@ class BatchConfig(
             log.info("==> processor date $date, problem id : $problemId")
             log.info("==> processor score before : ${it.score}")
 
-            var newScore = 0.0
-            val gradingStandards = it.problem.gradingStandards
+            val gradingResponseDto = this.sendGradingRequest(it)
 
-            val gradingRequestDto = GradingRequestDto.createGradingRequestDto(
-                problemId,
-                it.userAnswer,
-                gradingStandards
-            )
-
-            val correctIds = this.aiServerClient.getGrade(gradingRequestDto).getCorrectGradingStandardIds()
-
-            correctIds.map {
-                val gradingStandard = gradingStandards.find { gs ->
-                    gs.id == it
-                }
-
-                newScore += gradingStandard?.score ?: 0.0
-            }
-
-            it.score = newScore
+            it.score = this.getScore(gradingResponseDto, it.problem.gradingStandards)
             it.updatedAt = LocalDateTime.now()
 
             log.info("==> processor score after : ${it.score}")
@@ -116,5 +101,24 @@ class BatchConfig(
         return JpaItemWriterBuilder<GradingHistory>()
             .entityManagerFactory(entityManagerFactory)
             .build()
+    }
+
+    private fun sendGradingRequest(gradingHistory: GradingHistory): GradingResponseDto {
+        val gradingRequestDto = GradingRequestDto.createGradingRequestDto(gradingHistory)
+        return this.aiServerClient.getGrade(gradingRequestDto)
+    }
+
+    private fun getScore(gradingResponseDto: GradingResponseDto, gradingStandards: List<GradingStandard>): Double {
+        val correctIds = gradingResponseDto.getCorrectGradingStandardIds()
+
+        return correctIds.map {
+            gradingStandards.find { gs ->
+                gs.id == it
+            }?.score ?: 0.0
+        }.takeIf {
+            it.isNotEmpty()
+        }?.reduce { tot, cur ->
+            tot + cur
+        } ?: 0.0
     }
 }

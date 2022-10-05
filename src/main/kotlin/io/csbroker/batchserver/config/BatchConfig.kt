@@ -90,7 +90,7 @@ class BatchConfig(
             it.updatedAt = LocalDateTime.now()
 
             log.info("==> processor score after : ${it.score}")
-            return@ItemProcessor it
+            it
         }
     }
 

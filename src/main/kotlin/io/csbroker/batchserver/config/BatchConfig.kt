@@ -90,7 +90,7 @@ class BatchConfig(
             it.updatedAt = LocalDateTime.now()
 
             log.info("==> processor score after : ${it.score}")
-            it
+            return@ItemProcessor it
         }
     }
 
@@ -130,15 +130,12 @@ class BatchConfig(
 
     private fun getScore(gradingResponseDto: GradingResponseDto, gradingStandards: List<GradingStandard>): Double {
         val correctIds = gradingResponseDto.getCorrectGradingStandardIds()
+        var score = 0.0
 
-        return correctIds.map {
-            gradingStandards.find { gs ->
-                gs.id == it
-            }?.score ?: 0.0
-        }.takeIf {
-            it.isNotEmpty()
-        }?.reduce { tot, cur ->
-            tot + cur
-        } ?: 0.0
+        for (correctId in correctIds) {
+            score += gradingStandards.find { it.id == correctId }?.score ?: 0.0
+        }
+
+        return score
     }
 }

@@ -35,7 +35,7 @@ data class GradingRequestDto(
                     )
                 },
                 gradingHistory.problem.gradingStandards.filter {
-                    it.type == GradingStandardType.PROMPT
+                    it.type == GradingStandardType.CONTENT
                 }.map {
                     GradingPrompt(
                         it.id,

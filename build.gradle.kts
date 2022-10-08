@@ -6,6 +6,7 @@ plugins {
     kotlin("jvm") version "1.6.21"
     kotlin("plugin.spring") version "1.6.21"
     kotlin("plugin.jpa") version "1.6.21"
+    id("com.github.johnrengelman.shadow") version "7.1.2"
 }
 
 group = "io.csbroker"
@@ -18,7 +19,12 @@ repositories {
 }
 
 dependencies {
-    implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.cloud:spring-cloud-starter-function-web:3.2.5")
+    implementation("org.springframework.cloud:spring-cloud-function-kotlin:3.2.5")
+    implementation("org.springframework.cloud:spring-cloud-function-adapter-aws:3.2.5")
+    implementation("com.amazonaws:aws-lambda-java-events:3.11.0")
+    implementation("com.amazonaws:aws-lambda-java-core:1.2.1")
+    runtimeOnly("com.amazonaws:aws-lambda-java-log4j2:1.5.1")
     implementation("org.springframework.boot:spring-boot-starter-batch")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-quartz")
@@ -47,4 +53,29 @@ tasks.withType<KotlinCompile> {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+tasks.withType<Jar> {
+    manifest {
+        attributes["Start-Class"] = "io.csbroker.batchserver.BatchServerApplication"
+    }
+}
+
+tasks.assemble {
+    dependsOn("shadowJar")
+}
+
+tasks.withType<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar> {
+    archiveFileName.set("demo-function.jar")
+    dependencies {
+        exclude("org.springframework.cloud:spring-cloud-function-web")
+    }
+    mergeServiceFiles()
+    append("META-INF/spring.handlers")
+    append("META-INF/spring.schemas")
+    append("META-INF/spring.tooling")
+    transform(com.github.jengelman.gradle.plugins.shadow.transformers.PropertiesFileTransformer::class.java) {
+        paths.add("META-INF/spring.factories")
+        mergeStrategy = "append"
+    }
 }

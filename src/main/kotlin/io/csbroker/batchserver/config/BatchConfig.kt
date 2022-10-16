@@ -5,6 +5,7 @@ import io.csbroker.batchserver.dto.GradingRequestDto
 import io.csbroker.batchserver.dto.GradingResponseDto
 import io.csbroker.batchserver.entity.GradingHistory
 import io.csbroker.batchserver.entity.GradingStandard
+import io.csbroker.batchserver.repository.NotificationRepository
 import io.csbroker.batchserver.util.log
 import org.springframework.batch.core.ExitStatus
 import org.springframework.batch.core.Job
@@ -16,10 +17,13 @@ import org.springframework.batch.core.configuration.annotation.JobScope
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory
 import org.springframework.batch.core.configuration.annotation.StepScope
 import org.springframework.batch.item.ItemProcessor
+import org.springframework.batch.item.ItemWriter
 import org.springframework.batch.item.database.JpaItemWriter
 import org.springframework.batch.item.database.JpaPagingItemReader
 import org.springframework.batch.item.database.builder.JpaItemWriterBuilder
 import org.springframework.batch.item.database.builder.JpaPagingItemReaderBuilder
+import org.springframework.batch.item.support.CompositeItemWriter
+import org.springframework.batch.item.support.builder.CompositeItemWriterBuilder
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -31,7 +35,8 @@ class BatchConfig(
     private val jobBuilderFactory: JobBuilderFactory,
     private val stepBuilderFactory: StepBuilderFactory,
     private val entityManagerFactory: EntityManagerFactory,
-    private val aiServerClient: AIServerClient
+    private val aiServerClient: AIServerClient,
+    private val notificationRepository: NotificationRepository
 ) {
 
     @Bean
@@ -99,12 +104,27 @@ class BatchConfig(
     fun writer(
         @Value("#{jobParameters[problemId]}") problemId: Long,
         @Value("#{jobParameters[date]}") date: String
-    ): JpaItemWriter<GradingHistory> {
+    ): CompositeItemWriter<GradingHistory> {
         log.info("==> writer date $date, problem id : $problemId")
 
+        return CompositeItemWriterBuilder<GradingHistory>()
+            .delegates(listOf(updateGradingHistoryWriter(), insertNotification()))
+            .build()
+    }
+
+    @Bean
+    fun updateGradingHistoryWriter(): JpaItemWriter<GradingHistory> {
         return JpaItemWriterBuilder<GradingHistory>()
             .entityManagerFactory(entityManagerFactory)
             .build()
+    }
+
+    @Bean
+    fun insertNotification(): ItemWriter<GradingHistory> {
+        return ItemWriter<GradingHistory> {
+            log.info("==> insertNotification")
+            notificationRepository.insertBulkNotifications(it)
+        }
     }
 
     @Bean
@@ -125,6 +145,7 @@ class BatchConfig(
 
     private fun sendGradingRequest(gradingHistory: GradingHistory): GradingResponseDto {
         val gradingRequestDto = GradingRequestDto.createGradingRequestDto(gradingHistory)
+        log.info("==> sendGradingRequest gradingRequestDto : $gradingRequestDto")
         return this.aiServerClient.getGrade(gradingRequestDto)
     }
 
